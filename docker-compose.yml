@@ -1,0 +1,67 @@
+services:
+  sentry-mcp:
+    image: node:22-alpine
+    container_name: sentry-mcp
+    command: >
+      sh -c "npx -y supergateway --stdio 'npx -y @sentry/mcp-server@latest' --port 3000 --outputTransport streamableHttp"
+    environment:
+      - SENTRY_ACCESS_TOKEN=${SENTRY_ACCESS_TOKEN:-}
+    ports:
+      - "3005:3000"
+    networks:
+      - opencode-network
+    restart: "no"
+
+  playwright-mcp:
+    image: mcr.microsoft.com/playwright/mcp:latest
+    container_name: playwright-mcp
+    command: ["--port", "3000", "--host", "0.0.0.0", "--allowed-hosts", "*"]
+    ports:
+      - "3002:3000"
+    networks:
+      - opencode-network
+    restart: unless-stopped
+
+  semble-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile.semble-mcp
+    container_name: semble-mcp
+    working_dir: /workspace
+    volumes:
+      - /workspace:/workspace
+    ports:
+      - "3003:3000"
+    networks:
+      - opencode-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  ansible-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile.ansible-mcp
+    container_name: ansible-mcp
+    working_dir: /workspace
+    volumes:
+      - /workspace:/workspace
+    ports:
+      - "3004:3000"
+    networks:
+      - opencode-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+networks:
+  opencode-network:
+    external: true

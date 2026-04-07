@@ -1,0 +1,37 @@
+FROM python:3.12-slim
+
+# Install system dependencies (build tools, Node.js, npm) in a single layer
+RUN apt-get update -qq \
+    && apt-get install -y -qq --no-install-recommends \
+        build-essential \
+        rustc \
+        cargo \
+        nodejs \
+        npm \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Trust the Leidos corporate PKI chain (required for HuggingFace model downloads through HTTPS inspection)
+COPY leidos-cloud-pki-root-ca-2.crt /usr/local/share/ca-certificates/leidos-cloud-pki-root-ca-2.crt
+COPY leidos-perimeter-fw-ca-2024.crt /usr/local/share/ca-certificates/leidos-perimeter-fw-ca-2024.crt
+RUN update-ca-certificates
+
+# Point Python HTTP libraries at the system CA bundle so they trust the corp cert
+ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+ENV CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+
+# Install uv
+RUN pip install --no-cache-dir uv
+
+# Pre-install supergateway globally so it doesn't need to be fetched at runtime
+RUN npm install -g supergateway
+
+# Pre-fetch the semble[mcp] package and download the embedding model into the uv cache
+RUN uvx --from "semble[mcp]" semble --help
+
+WORKDIR /workspace
+
+EXPOSE 3000
+
+CMD supergateway --stdio 'uvx --from "semble[mcp]" semble' --port 3000 --outputTransport streamableHttp --healthEndpoint /health

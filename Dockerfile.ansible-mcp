@@ -1,0 +1,29 @@
+FROM python:3.12-slim
+
+RUN apt-get update -qq \
+    && apt-get install -y -qq --no-install-recommends \
+        git \
+        openssh-client \
+        nodejs \
+        npm \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY leidos-cloud-pki-root-ca-2.crt /usr/local/share/ca-certificates/leidos-cloud-pki-root-ca-2.crt
+COPY leidos-perimeter-fw-ca-2024.crt /usr/local/share/ca-certificates/leidos-perimeter-fw-ca-2024.crt
+RUN update-ca-certificates
+
+ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+ENV CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+
+RUN npm install -g supergateway
+
+# Install mcp-ansible and its dependencies (ansible-core pulled in automatically)
+RUN pip install --no-cache-dir git+https://github.com/bsahane/mcp-ansible.git
+
+WORKDIR /workspace
+
+EXPOSE 3000
+
+CMD supergateway --stdio 'python -c "from ansible_mcp.server import mcp; mcp.run()"' --port 3000 --outputTransport streamableHttp --healthEndpoint /health

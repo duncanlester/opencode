@@ -1,0 +1,69 @@
+services:
+  opencode:
+    image: ghcr.io/anomalyco/opencode:latest
+    container_name: opencode-offline
+    entrypoint: ["sleep", "infinity"]
+    volumes:
+      - /workspace:/workspace
+      - ${HOME}/.opencode:/root/.opencode
+    working_dir: /workspace
+    environment:
+      - OPENCODE_MODEL=ollama/mistral
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OPENCODE_API_KEY=${OPENCODE_API_KEY}
+    networks:
+      - opencode-network
+    depends_on:
+      - ollama
+      - filesystem-mcp
+      - playwright-mcp
+    restart: unless-stopped
+
+  filesystem-mcp:
+    image: node:22-alpine
+    container_name: filesystem-mcp
+    command: >
+      sh -c "npx -y supergateway --stdio 'npx -y @modelcontextprotocol/server-filesystem /host/dev' --port 3000 --outputTransport streamableHttp"
+    volumes:
+      - ${HOME}/dev:/host/dev
+    networks:
+      - opencode-network
+    restart: unless-stopped
+
+  sentry-mcp:
+    image: node:22-alpine
+    container_name: sentry-mcp
+    command: >
+      sh -c "npx -y supergateway --stdio 'npx -y @sentry/mcp-server@latest' --port 3000 --outputTransport streamableHttp"
+    environment:
+      - SENTRY_ACCESS_TOKEN=${SENTRY_ACCESS_TOKEN:-}
+    networks:
+      - opencode-network
+    restart: "no"
+
+  playwright-mcp:
+    image: mcr.microsoft.com/playwright/mcp:latest
+    container_name: playwright-mcp
+    command: ["--port", "3000", "--host", "0.0.0.0", "--allowed-hosts", "*"]
+    networks:
+      - opencode-network
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - opencode-network
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+    external: true
+
+networks:
+  opencode-network:
+    external: true

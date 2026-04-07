@@ -1,0 +1,45 @@
+# Environment variables and secrets
+.env
+.env.local
+.env*.local
+*.pem
+*.key
+
+# Shell history (may contain API keys)
+.bash_history
+.zsh_history
+.history
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Docker
+docker-compose.override.yml
+.docker/
+
+# Logs
+*.log
+logs/
+
+# Playwright MCP snapshots
+.playwright-mcp/
+
+# Temporary files
+*.tmp
+tmp/
+temp/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Local development
+.local/
+
+# Claude Code local settings (may contain tokens)
+.claude/
